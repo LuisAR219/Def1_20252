@@ -1,5 +1,0 @@
-git init
-git config --global user.name "Nombre"
-git config --global user.email "Correo"
-git add .
-git commit -m "Estructura inicial del proyecto"
