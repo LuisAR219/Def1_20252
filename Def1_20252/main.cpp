@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fstream>
 
 using namespace std;
 
@@ -8,12 +9,58 @@ void encriptarArreglo(unsigned char* entrada, unsigned char* salida, int tam, in
 bool encontrarParametros(unsigned char* S, int M, unsigned char* C, int N, int &nDetectado, unsigned char &KDetectado, int &pos);
 void probarCaso(const char* nombre, unsigned char* S, int M, int nReal, unsigned char KReal);
 void desencriptarTexto(unsigned char* textoCifrado, int tamañoCifrado, unsigned char* textoDesencriptado, int n, unsigned char K);
+unsigned char* leerEncriptado(const char* ruta, int &tam);
+unsigned char* leerPista(const char* ruta, int &tam);
 
-int main()
-{
+int main() {
 
 }
 
+unsigned char* leerEncriptado(const char* ruta, int &tam) {
+    ifstream archivo(ruta, ios::binary);
+    if (!archivo) {
+        cout << "Error: no se pudo abrir " << ruta << endl;
+        tam = 0;
+        return nullptr;
+    }
+
+    archivo.seekg(0, ios::end);
+    tam = archivo.tellg();
+    archivo.seekg(0, ios::beg);
+
+    unsigned char* buffer = new unsigned char[tam];
+    archivo.read((char*)buffer, tam);
+    archivo.close();
+
+    return buffer;
+}
+
+unsigned char* leerPista(const char* ruta, int &tam) {
+    ifstream archivo(ruta);
+    if (!archivo) {
+        cout << "Error: no se pudo abrir " << ruta << endl;
+        tam = 0;
+        return nullptr;
+    }
+
+    tam = 0;
+    char c;
+    while (archivo.get(c)) {
+        tam++;
+    }
+
+    archivo.clear();
+    archivo.seekg(0, ios::beg);
+
+    unsigned char* buffer = new unsigned char[tam];
+    for (int i = 0; i < tam; i++) {
+        archivo.get(c);
+        buffer[i] = (unsigned char)c;
+    }
+
+    archivo.close();
+    return buffer;
+}
 
 unsigned char rotarIzquierda(unsigned char valor, int n) {
     return (unsigned char)((valor << n) | (valor >> (8 - n)));
