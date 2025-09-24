@@ -11,6 +11,7 @@ void probarCaso(const char* nombre, unsigned char* S, int M, int nReal, unsigned
 void desencriptarTexto(unsigned char* textoCifrado, int tamañoCifrado, unsigned char* textoDesencriptado, int n, unsigned char K);
 unsigned char* leerEncriptado(const char* ruta, int &tam);
 unsigned char* leerPista(const char* ruta, int &tam);
+void imprimirUTF8(unsigned char* texto, int tam, int limite);
 
 int main() {
 
@@ -132,4 +133,11 @@ void probarCaso(const char* nombre, unsigned char* S, int M, int nReal, unsigned
 
     delete[] C;
     C = nullptr;
+}
+
+void imprimirUTF8(unsigned char* texto, int tam, int limite = 200) {
+    for (int i = 0; i < tam && i < limite; i++) {
+        cout << (char)texto[i];
+    }
+    cout << endl;
 }
