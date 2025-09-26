@@ -1,17 +1,20 @@
 #include <iostream>
 #include <fstream>
 
+
 using namespace std;
 
 unsigned char rotarIzquierda(unsigned char valor, int n);
 unsigned char rotarDerecha(unsigned char valor, int n);
 void encriptarArreglo(unsigned char* entrada, unsigned char* salida, int tam, int n, unsigned char K);
 bool encontrarParametros(unsigned char* S, int M, unsigned char* C, int N, int &nDetectado, unsigned char &KDetectado, int &pos);
+bool encontrarParametrosBruto(unsigned char* S, int M, unsigned char* C, int N, int &nDetectado, unsigned char &KDetectado, int &pos);
 void probarCaso(const char* nombre, unsigned char* S, int M, int nReal, unsigned char KReal);
 void desencriptarTexto(unsigned char* textoCifrado, int tamañoCifrado, unsigned char* textoDesencriptado, int n, unsigned char K);
 unsigned char* leerEncriptado(const char* ruta, int &tam);
 unsigned char* leerPista(const char* ruta, int &tam);
 void imprimirUTF8(unsigned char* texto, int tam, int limite);
+
 
 int main() {
 
@@ -109,6 +112,37 @@ bool encontrarParametros(unsigned char* S, int M, unsigned char* C, int N, int &
             }
         }
     }
+    return false;
+}
+
+bool encontrarParametrosBruto(unsigned char* S, int M, unsigned char* C, int N, int &nDetectado, unsigned char &KDetectado, int &pos) {
+    if (M <= 0 || N < M) return false;
+
+    for (int i = 0; i <= N - M; i++) {
+        for (int n = 1; n < 8; n++) {
+            for (int Kint = 0; Kint < 256; Kint++) {
+                unsigned char K = (unsigned char)Kint;
+                bool verificado = true;
+
+                int j = 0;
+                while (j < M && verificado) {
+                    unsigned char esperado = (unsigned char)(( (unsigned char)((S[j] << n) | (S[j] >> (8 - n))) ) ^ K);
+                    if (esperado != C[i + j]) {
+                        verificado = false;
+                    }
+                    j++;
+                }
+
+                if (verificado) {
+                    nDetectado = n;
+                    KDetectado = K;
+                    pos = i;
+                    return true;
+                }
+            }
+        }
+    }
+
     return false;
 }
 
