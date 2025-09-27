@@ -14,6 +14,7 @@ void desencriptarTexto(unsigned char* textoCifrado, int tamañoCifrado, unsigned
 unsigned char* leerEncriptado(const char* ruta, int &tam);
 unsigned char* leerPista(const char* ruta, int &tam);
 void imprimirUTF8(unsigned char* texto, int tam, int limite);
+unsigned char* descompresionLZ78(unsigned char* desencriptado, int longitud);
 
 
 int main() {
@@ -174,4 +175,47 @@ void imprimirUTF8(unsigned char* texto, int tam, int limite = 200) {
         cout << (char)texto[i];
     }
     cout << endl;
+}
+
+unsigned char* descompresionLZ78(unsigned char* desencriptado, int longitud) {
+    int numEntradas = longitud/3 + 1;
+    unsigned short* posiciones = new unsigned short[numEntradas];
+    unsigned char* valores = new unsigned char[numEntradas];
+    posiciones[0] = 0;
+    valores[0] = 0;
+    unsigned char* textoDescomprimido = new unsigned char[longitud];
+    int posionActual = -1;
+
+    for (int i = 0; i < longitud; i += 3) {
+        int b1 = desencriptado[i];
+        int b2 = desencriptado[i+1];
+        int ascii = desencriptado[i+2];
+        unsigned int posicion = (unsigned int)b1 * 256 + (unsigned int)b2;
+        int actual = (i/3) + 1;
+        posiciones[actual] = (unsigned short)posicion;
+        valores[actual] = (unsigned char)ascii;
+
+        unsigned int posicionVariante = posiciones[actual];
+        int *temp = new int[actual];
+        int cnt = -1;
+        while (posicionVariante > 0) {
+            cnt++;
+            temp[cnt] = posicionVariante;
+            posicionVariante = posiciones[posicionVariante];
+        }
+        if (cnt > -1) {
+            for (int k = cnt; k >= 0; --k) {
+                posionActual++;
+                textoDescomprimido[posionActual] = (int)valores[temp[k]];;
+            }
+        }
+        posionActual++;
+        textoDescomprimido[posionActual] = (int)valores[actual];
+        delete[] temp;
+
+
+    }
+    delete[] posiciones;
+    delete[] valores;
+    return textoDescomprimido;
 }
