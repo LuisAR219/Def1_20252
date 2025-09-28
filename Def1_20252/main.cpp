@@ -192,46 +192,56 @@ void actualizacionArreglo(unsigned char*& buffer, int& tamaño, int& capacidad, 
     buffer[tamaño++] = valor;
 }
 
-unsigned char* descompresionLZ78(unsigned char* desencriptado, int longitud) {
-    int numEntradas = longitud/3 + 1;
+unsigned char* descompresionLZ78(const unsigned char* desencriptado, int longitud, int &tamDinamico) {
+    tamDinamico = 0;
+    if (!desencriptado || longitud <= 0) return nullptr;
+
+    int numEntradas = longitud / 3 + 2;
     unsigned short* posiciones = new unsigned short[numEntradas];
     unsigned char* valores = new unsigned char[numEntradas];
     posiciones[0] = 0;
     valores[0] = 0;
-    unsigned char* textoDescomprimido = new unsigned char[longitud];
-    int posionActual = -1;
 
-    for (int i = 0; i < longitud; i += 3) {
-        int b1 = desencriptado[i];
-        int b2 = desencriptado[i+1];
-        int ascii = desencriptado[i+2];
-        unsigned int posicion = (unsigned int)b1 * 256 + (unsigned int)b2;
-        int actual = (i/3) + 1;
-        posiciones[actual] = (unsigned short)posicion;
-        valores[actual] = (unsigned char)ascii;
+    unsigned char* textoDescomprimido = nullptr;
+    int posionActual = -1;
+    int capacidad = 0;
+    int tamaño = 0;
+
+    for (int i = 0; i + 2 < longitud; i += 3) {
+        unsigned int b1 = desencriptado[i];
+        unsigned int b2 = desencriptado[i+1];
+        unsigned char ascii = desencriptado[i+2];
+
+        unsigned short posicion = b1 * 256 + b2;
+        int actual = (i / 3) + 1;
+        posiciones[actual] = posicion;
+        valores[actual] = ascii;
 
         unsigned int posicionVariante = posiciones[actual];
-        int *temp = new int[actual];
+        int *temp = new int[(actual > 0) ? actual : 1];
         int cnt = -1;
         while (posicionVariante > 0) {
-            cnt++;
-            temp[cnt] = posicionVariante;
+            ++cnt;
+            temp[cnt] = (int)posicionVariante;
             posicionVariante = posiciones[posicionVariante];
         }
+
         if (cnt > -1) {
             for (int k = cnt; k >= 0; --k) {
+                actualizacionArreglo(textoDescomprimido, tamaño, capacidad, valores[temp[k]]);
                 posionActual++;
-                textoDescomprimido[posionActual] = (int)valores[temp[k]];
             }
         }
+        actualizacionArreglo(textoDescomprimido, tamaño, capacidad, valores[actual]);
         posionActual++;
-        textoDescomprimido[posionActual] = (int)valores[actual];
         delete[] temp;
-
-
     }
+
+    tamDinamico = tamaño;
+
     delete[] posiciones;
     delete[] valores;
+
     return textoDescomprimido;
 }
 
