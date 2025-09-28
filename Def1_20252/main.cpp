@@ -7,16 +7,17 @@ using namespace std;
 unsigned char rotarIzquierda(unsigned char valor, int n);
 unsigned char rotarDerecha(unsigned char valor, int n);
 void encriptarArreglo(unsigned char* entrada, unsigned char* salida, int tam, int n, unsigned char K);
-bool encontrarParametros(unsigned char* S, int M, unsigned char* C, int N, int &nDetectado, unsigned char &KDetectado, int &pos);
-bool encontrarParametrosBruto(unsigned char* S, int M, unsigned char* C, int N, int &nDetectado, unsigned char &KDetectado, int &pos);
-void probarCaso(const char* nombre, unsigned char* S, int M, int nReal, unsigned char KReal);
+bool encontrarParametrosPorFormato(unsigned char* pista, int tamPista, unsigned char* textoCifrado, int tamCifrado,  int &nDetectado, unsigned char &KDetectado, int &pos, int &metodoDetectado);
 void desencriptarTexto(unsigned char* textoCifrado, int tamañoCifrado, unsigned char* textoDesencriptado, int n, unsigned char K);
+bool encontrarParametros(unsigned char* S, int M, unsigned char* C, int N, int &nDetectado, unsigned char &KDetectado, int &pos);
 unsigned char* leerEncriptado(const char* ruta, int &tam);
 unsigned char* leerPista(const char* ruta, int &tam);
 void imprimirUTF8(unsigned char* texto, int tam, int limite);
-unsigned char* descompresionLZ78(unsigned char* desencriptado, int longitud);
+unsigned char* descompresionLZ78(const unsigned char* desencriptado, int longitud, int &tamDinamico);
 unsigned char* descompresionRLE(unsigned char* desencriptado, int longitud, int &totalSalida);
 void actualizacionArreglo(unsigned char*& buffer, int& tamaño, int& capacidad, unsigned char valor);
+
+
 
 int main() {
 
@@ -117,59 +118,102 @@ bool encontrarParametros(unsigned char* S, int M, unsigned char* C, int N, int &
     return false;
 }
 
-bool encontrarParametrosBruto(unsigned char* S, int M, unsigned char* C, int N, int &nDetectado, unsigned char &KDetectado, int &pos) {
-    if (M <= 0 || N < M) return false;
+bool encontrarParametrosPorFormato(unsigned char* pista, int tamPista, unsigned char* textoCifrado, int tamCifrado, int &nDetectado, unsigned char &KDetectado, int &pos, int &metodoDetectado) {
 
-    for (int i = 0; i <= N - M; i++) {
-        for (int n = 1; n < 8; n++) {
-            for (int Kint = 0; Kint < 256; Kint++) {
-                unsigned char K = (unsigned char)Kint;
-                bool verificado = true;
+    for (int n = 1; n < 8; n++) {
+        for (int K = 0; K < 256; K++) {
+            unsigned char* desencriptado = new unsigned char[tamCifrado];
+            desencriptarTexto(textoCifrado, tamCifrado, desencriptado, n, (unsigned char)K);
 
-                int j = 0;
-                while (j < M && verificado) {
-                    unsigned char esperado = (unsigned char)(( (unsigned char)((S[j] << n) | (S[j] >> (8 - n))) ) ^ K);
-                    if (esperado != C[i + j]) {
-                        verificado = false;
-                    }
-                    j++;
+            bool formatoValido = true;
+            int metodo = 0;
+
+            for (int i = 0; i < tamCifrado - 2; i += 3) {
+                unsigned char byte1 = desencriptado[i];
+                unsigned char byte2 = desencriptado[i + 1];
+                unsigned char byte3 = desencriptado[i + 2];
+
+                bool tercerByteValido = ((byte3 >= 'A' && byte3 <= 'Z') ||
+                                         (byte3 >= 'a' && byte3 <= 'z') ||
+                                         (byte3 >= '0' && byte3 <= '9'));
+
+                if (!tercerByteValido) {
+                    formatoValido = false;
+                    break;
                 }
 
-                if (verificado) {
-                    nDetectado = n;
-                    KDetectado = K;
-                    pos = i;
-                    return true;
+                if (i == 0) {
+                    bool pareceLZ78 = (byte1 == 0 && byte2 == 0);
+
+                    if (pareceLZ78) {
+                        metodo = 2;
+                    } else {
+                        metodo = 1;
+                    }
                 }
             }
+
+            if (formatoValido && metodo != 0) {
+                unsigned char* textoDescomprimido = nullptr;
+                int tamDescomprimido = 0;
+                bool pistaEncontrada = false;
+
+                if (metodo == 1) {
+                    textoDescomprimido = descompresionRLE(desencriptado, tamCifrado, tamDescomprimido);
+                } else if (metodo == 2) {
+                    textoDescomprimido = descompresionLZ78(desencriptado, tamCifrado, tamDescomprimido);
+                }
+
+                if (textoDescomprimido && tamDescomprimido >= tamPista) {
+                    for (int i = 0; i <= tamDescomprimido - tamPista; i++) {
+                        bool coincide = true;
+                        for (int j = 0; j < tamPista; j++) {
+                            if (textoDescomprimido[i + j] != pista[j]) {
+                                coincide = false;
+                                break;
+                            }
+                        }
+                        if (coincide) {
+                            pistaEncontrada = true;
+                            pos = i;
+                            break;
+                        }
+                    }
+                }
+
+                if (pistaEncontrada) {
+                    nDetectado = n;
+                    KDetectado = (unsigned char)K;
+                    metodoDetectado = metodo;
+
+                    delete[] desencriptado;
+                    desencriptado = nullptr;
+
+                    if (textoDescomprimido) {
+                        delete[] textoDescomprimido;
+                        textoDescomprimido = nullptr;
+                    }
+
+                    cout << "¡Parámetros encontrados por formato!" << endl;
+                    cout << "n=" << n << ", K=" << K << ", Método=" << (metodo == 1 ? "RLE" : "LZ78") << endl;
+                    return true;
+                }
+
+                if (textoDescomprimido) {
+                    delete[] textoDescomprimido;
+                    textoDescomprimido = nullptr;
+                }
+            }
+
+            delete[] desencriptado;
+            desencriptado = nullptr;
         }
     }
 
+    metodoDetectado = 0;
     return false;
 }
 
-void probarCaso(const char* nombre, unsigned char* S, int M, int nReal, unsigned char KReal) {
-    cout << "=== " << nombre << " ===" << endl;
-
-    unsigned char* C = new unsigned char[M];
-    encriptarArreglo(S, C, M, nReal, KReal);
-
-    cout << "Texto cifrado generado: ";
-    for (int i = 0; i < M; i++) cout << hex << (int)C[i] << " ";
-    cout << dec << endl;
-
-    int n; unsigned char K; int pos;
-    if (encontrarParametros(S, M, C, M, n, K, pos)) {
-        cout << "Detectado n = " << n << ", K = " << (int)K << ", pos = " << pos << endl;
-    } else {
-        cout << "No se encontro coincidencia" << endl;
-    }
-
-    cout << endl;
-
-    delete[] C;
-    C = nullptr;
-}
 
 void imprimirUTF8(unsigned char* texto, int tam, int limite = 200) {
     for (int i = 0; i < tam && i < limite; i++) {
