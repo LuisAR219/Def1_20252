@@ -97,19 +97,15 @@ int main() {
             desencriptado = nullptr;
 
         } else {
-            // Fallback silencioso al método tradicional
             if (encontrarParametros(pista, tamPista, encriptado, tamEnc, nDetectado, KDetectado, posicion)) {
-                // Si encuentra parámetros, procesar silenciosamente
                 unsigned char* desencriptado = new unsigned char[tamEnc];
                 desencriptarTexto(encriptado, tamEnc, desencriptado, nDetectado, KDetectado);
 
                 unsigned char* textoFinal = nullptr;
                 int tamFinal = 0;
 
-                // Intentar ambos métodos de compresión
                 textoFinal = descompresionRLE(desencriptado, tamEnc, tamFinal);
                 if (textoFinal) {
-                    // Verificar si contiene la pista
                     bool pistaEncontrada = false;
                     if (tamFinal >= tamPista) {
                         for (int i = 0; i <= tamFinal - tamPista; i++) {
@@ -146,7 +142,6 @@ int main() {
                     delete[] textoFinal;
                     textoFinal = nullptr;
                 } else {
-                    // Probar LZ78
                     textoFinal = descompresionLZ78(desencriptado, tamEnc, tamFinal);
                     if (textoFinal) {
                         ofstream resultadoFile(archivoResultado);
