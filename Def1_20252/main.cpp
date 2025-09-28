@@ -15,6 +15,7 @@ unsigned char* leerEncriptado(const char* ruta, int &tam);
 unsigned char* leerPista(const char* ruta, int &tam);
 void imprimirUTF8(unsigned char* texto, int tam, int limite);
 unsigned char* descompresionLZ78(unsigned char* desencriptado, int longitud);
+unsigned char* descompresionRLE(unsigned char* desencriptado, int longitud, int &totalSalida);
 
 
 int main() {
@@ -206,7 +207,7 @@ unsigned char* descompresionLZ78(unsigned char* desencriptado, int longitud) {
         if (cnt > -1) {
             for (int k = cnt; k >= 0; --k) {
                 posionActual++;
-                textoDescomprimido[posionActual] = (int)valores[temp[k]];;
+                textoDescomprimido[posionActual] = (int)valores[temp[k]];
             }
         }
         posionActual++;
@@ -219,3 +220,23 @@ unsigned char* descompresionLZ78(unsigned char* desencriptado, int longitud) {
     delete[] valores;
     return textoDescomprimido;
 }
+
+unsigned char* descompresionRLE(unsigned char* desencriptado, int longitud, int &totalSalida) {
+    totalSalida = 0;
+    for (int i = 0; i < longitud; i += 3) {
+        unsigned int cnt = (unsigned int) desencriptado[i + 1];
+        totalSalida += cnt;
+    }
+
+    unsigned char* textoDescomprimido = new unsigned char[totalSalida];
+    unsigned int posionActual = 0;
+    for (int i = 0; i < longitud; i += 3) {
+        unsigned int cnt = (unsigned int) desencriptado[i + 1];
+        unsigned char ch = desencriptado[i + 2];
+        for (unsigned int k = 0; k < cnt; ++k) {
+            textoDescomprimido[posionActual++] = ch;
+        }
+    }
+    return textoDescomprimido;
+}
+
