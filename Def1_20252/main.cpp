@@ -26,7 +26,6 @@ int main() {
     cin >> numCasos;
 
     if (numCasos <= 0) {
-        cout << "Numero de casos invalido." << endl;
         return 1;
     }
 
@@ -39,17 +38,12 @@ int main() {
         sprintf(archivoPista, "%spista%d.txt", rutaBase, caso);
         sprintf(archivoResultado, "%sresultado%d.txt", rutaBase, caso);
 
-        cout << "=== PROCESANDO CASO " << caso << " ===" << endl;
-        cout << "Archivo encriptado: " << archivoEncriptado << endl;
-        cout << "Archivo pista: " << archivoPista << endl;
-
         int tamEnc = 0, tamPista = 0;
 
         unsigned char* encriptado = leerEncriptado(archivoEncriptado, tamEnc);
         unsigned char* pista = leerPista(archivoPista, tamPista);
 
         if (!encriptado || !pista) {
-            cout << "Error: No se pudieron leer los archivos para el caso " << caso << endl;
             if (encriptado) {
                 delete[] encriptado;
                 encriptado = nullptr;
@@ -61,23 +55,11 @@ int main() {
             continue;
         }
 
-        cout << "Encriptado: " << tamEnc << " bytes" << endl;
-        cout << "Pista: '";
-        for (int i = 0; i < tamPista; i++) cout << (char)pista[i];
-        cout << "' (" << tamPista << " bytes)" << endl;
-
         int nDetectado = 0, metodoDetectado = 0, posicion = 0;
         unsigned char KDetectado = 0;
 
         if (encontrarParametrosPorFormato(pista, tamPista, encriptado, tamEnc,
                                           nDetectado, KDetectado, posicion, metodoDetectado)) {
-            cout << "\n=== RESULTADO CASO " << caso << " ===" << endl;
-            cout << "Parametros detectados:" << endl;
-            cout << "n = " << nDetectado << endl;
-            cout << "K = " << (int)KDetectado << " (0x" << hex << (int)KDetectado << dec << ")" << endl;
-            cout << "Metodo = " << (metodoDetectado == 1 ? "RLE" : "LZ78") << endl;
-            cout << "Pista encontrada en posición: " << posicion << endl;
-
             unsigned char* desencriptado = new unsigned char[tamEnc];
             desencriptarTexto(encriptado, tamEnc, desencriptado, nDetectado, KDetectado);
 
@@ -91,9 +73,6 @@ int main() {
             }
 
             if (textoFinal) {
-                cout << "\n=== TEXTO ORIGINAL RECUPERADO CASO " << caso << " ===" << endl;
-                cout << "Tamanio: " << tamFinal << " caracteres" << endl;
-
                 ofstream resultadoFile(archivoResultado);
                 if (resultadoFile.is_open()) {
                     resultadoFile << "=== PARAMETROS DE DESENCRIPTACION ===" << endl;
@@ -108,35 +87,89 @@ int main() {
                         resultadoFile << textoFinal[i];
                     }
                     resultadoFile.close();
-                    cout << "Resultado guardado en: " << archivoResultado << endl;
                 }
-
-                cout << "Primeros 200 caracteres:" << endl;
-                int limite = (200 < tamFinal) ? 200 : tamFinal;
-                for (int i = 0; i < limite; i++) {
-                    cout << (char)textoFinal[i];
-                }
-                cout << endl;
 
                 delete[] textoFinal;
                 textoFinal = nullptr;
-            } else {
-                cout << "Error: No se pudo descomprimir el texto." << endl;
             }
 
             delete[] desencriptado;
             desencriptado = nullptr;
 
         } else {
-            cout << "No se pudieron detectar los parametros por formato para el caso " << caso << "." << endl;
-            cout << "Probando metodo de fuerza bruta tradicional..." << endl;
-
+            // Fallback silencioso al método tradicional
             if (encontrarParametros(pista, tamPista, encriptado, tamEnc, nDetectado, KDetectado, posicion)) {
-                cout << "Parametros encontrados por metodo tradicional:" << endl;
-                cout << "n = " << nDetectado << ", K = " << (int)KDetectado << endl;
+                // Si encuentra parámetros, procesar silenciosamente
+                unsigned char* desencriptado = new unsigned char[tamEnc];
+                desencriptarTexto(encriptado, tamEnc, desencriptado, nDetectado, KDetectado);
 
-            } else {
-                cout << "No se encontraron parametros validos para el caso " << caso << "." << endl;
+                unsigned char* textoFinal = nullptr;
+                int tamFinal = 0;
+
+                // Intentar ambos métodos de compresión
+                textoFinal = descompresionRLE(desencriptado, tamEnc, tamFinal);
+                if (textoFinal) {
+                    // Verificar si contiene la pista
+                    bool pistaEncontrada = false;
+                    if (tamFinal >= tamPista) {
+                        for (int i = 0; i <= tamFinal - tamPista; i++) {
+                            bool coincide = true;
+                            for (int j = 0; j < tamPista; j++) {
+                                if (textoFinal[i + j] != pista[j]) {
+                                    coincide = false;
+                                    break;
+                                }
+                            }
+                            if (coincide) {
+                                pistaEncontrada = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (pistaEncontrada) {
+                        ofstream resultadoFile(archivoResultado);
+                        if (resultadoFile.is_open()) {
+                            resultadoFile << "=== PARAMETROS DE DESENCRIPTACION ===" << endl;
+                            resultadoFile << "n (rotación): " << nDetectado << endl;
+                            resultadoFile << "K (clave): " << (int)KDetectado << endl;
+                            resultadoFile << "Metodo de compresion: RLE" << endl;
+                            resultadoFile << "======================================" << endl;
+                            resultadoFile << endl;
+                            resultadoFile << "=== TEXTO ORIGINAL ===" << endl;
+                            for (int i = 0; i < tamFinal; i++) {
+                                resultadoFile << textoFinal[i];
+                            }
+                            resultadoFile.close();
+                        }
+                    }
+                    delete[] textoFinal;
+                    textoFinal = nullptr;
+                } else {
+                    // Probar LZ78
+                    textoFinal = descompresionLZ78(desencriptado, tamEnc, tamFinal);
+                    if (textoFinal) {
+                        ofstream resultadoFile(archivoResultado);
+                        if (resultadoFile.is_open()) {
+                            resultadoFile << "=== PARAMETROS DE DESENCRIPTACION ===" << endl;
+                            resultadoFile << "n (rotación): " << nDetectado << endl;
+                            resultadoFile << "K (clave): " << (int)KDetectado << endl;
+                            resultadoFile << "Metodo de compresion: LZ78" << endl;
+                            resultadoFile << "======================================" << endl;
+                            resultadoFile << endl;
+                            resultadoFile << "=== TEXTO ORIGINAL ===" << endl;
+                            for (int i = 0; i < tamFinal; i++) {
+                                resultadoFile << textoFinal[i];
+                            }
+                            resultadoFile.close();
+                        }
+                        delete[] textoFinal;
+                        textoFinal = nullptr;
+                    }
+                }
+
+                delete[] desencriptado;
+                desencriptado = nullptr;
             }
         }
 
@@ -145,13 +178,8 @@ int main() {
 
         delete[] pista;
         pista = nullptr;
-
-        cout << endl;
-        for (int i = 0; i < 50; i++) cout << "=";
-        cout << endl << endl;
     }
 
-    cout << "Procesamiento de " << numCasos << " casos completado." << endl;
     return 0;
 }
 
