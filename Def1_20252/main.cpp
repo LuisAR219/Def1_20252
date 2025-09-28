@@ -16,7 +16,7 @@ unsigned char* leerPista(const char* ruta, int &tam);
 void imprimirUTF8(unsigned char* texto, int tam, int limite);
 unsigned char* descompresionLZ78(unsigned char* desencriptado, int longitud);
 unsigned char* descompresionRLE(unsigned char* desencriptado, int longitud, int &totalSalida);
-
+void actualizacionArreglo(unsigned char*& buffer, int& tamaño, int& capacidad, unsigned char valor);
 
 int main() {
 
@@ -176,6 +176,20 @@ void imprimirUTF8(unsigned char* texto, int tam, int limite = 200) {
         cout << (char)texto[i];
     }
     cout << endl;
+}
+
+void actualizacionArreglo(unsigned char*& buffer, int& tamaño, int& capacidad, unsigned char valor) {
+    if (tamaño >= capacidad) {
+        int nuevaCapacidad = (capacidad == 0) ? 16 : capacidad * 2;
+        unsigned char* nuevo = new unsigned char[nuevaCapacidad];
+        for (int i = 0; i < tamaño; ++i){
+            nuevo[i] = buffer[i];
+        }
+        delete[] buffer;
+        buffer = nuevo;
+        capacidad = nuevaCapacidad;
+    }
+    buffer[tamaño++] = valor;
 }
 
 unsigned char* descompresionLZ78(unsigned char* desencriptado, int longitud) {
